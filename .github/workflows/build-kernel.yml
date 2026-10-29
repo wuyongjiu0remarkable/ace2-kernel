@@ -93,6 +93,9 @@ jobs:
           sed -i 's|^BUILDTOOLS_PREBUILT_BIN=.*|BUILDTOOLS_PREBUILT_BIN=|' "$CFG"
           sed -i 's|^CLANG_PREBUILT_BIN=.*|CLANG_PREBUILT_BIN=|' "$CFG"
           grep -nE 'PREBUILT_BIN' "$CFG"
+          CFG2="$WORK/kernel_platform/common/build.config.gki"
+          sed -i 's|^POST_DEFCONFIG_CMDS=.*|POST_DEFCONFIG_CMDS=|' "$CFG2"
+          grep -n POST_DEFCONFIG "$CFG2"
           # 包装脚本内部仍指向不存在的 prebuilts/，直接换成系统工具
           WB="$WORK/kernel_platform/build/build-tools/path/linux-x86"
           for t in bison flex m4 make python3 python awk sed; do
