@@ -41,7 +41,7 @@ if [ "$NO_SUSFS" -eq 0 ]; then
   echo "==> [3/4] SUSFS @ $SUSFS_REF"
   TMP="$(mktemp -d)"
   git clone --depth 1 -b "$SUSFS_REF" "$SUSFS_REPO" "$TMP/susfs"
-  PATCHES="$(find "$TMP/susfs" -name '*.patch' | grep -E '50_add_susfs|susfs' | head -5 || true)"
+  PATCHES="$(find "$TMP/susfs" -name '50_add_susfs_in_*.patch' | head -1 || true)"
   [ -n "$PATCHES" ] || { echo "SUSFS 仓库里没找到补丁，检查 SUSFS_REF=$SUSFS_REF" >&2; exit 1; }
   for p in $PATCHES; do
     echo "  applying $(basename "$p")"
