@@ -54,7 +54,17 @@ echo "使用 BUILD_CONFIG=$CFG"
 echo "==> [4/4] 编译"
 cd kernel_platform
 OUT_DIR="${OUT_DIR:-$ROOT/out}" DIST_DIR="${DIST_DIR:-$ROOT/out/dist}" \
+set +e
+# shellcheck disable=SC2086
 BUILD_CONFIG="$CFG" ./build/build.sh -j"$JOBS" 2>&1 | tee "$ROOT/out/build.log"
+RC=${PIPESTATUS[0]}
+set -e
+if [ -f "$ROOT/out/dist/Image" ] || [ -f "$ROOT/out/common/arch/arm64/boot/Image" ]; then
+  echo "==> Image OK (build.sh exit=$RC)"
+else
+  echo "!! no Image, build.sh exit=$RC" >&2
+  exit "$RC"
+fi
 
 echo "==> 产物"
 ls -la "$ROOT/out/dist" 2>/dev/null || true
