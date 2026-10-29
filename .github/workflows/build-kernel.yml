@@ -110,9 +110,7 @@ jobs:
         with:
           name: sm8475-${{ inputs.variant }}-${{ github.run_number }}
           path: |
-            work/out/dist/
-            work/out/common/arch/arm64/boot/
-            work/out/common/.config
+            stage/
             work/out/build.log
           if-no-files-found: warn
           retention-days: 14
