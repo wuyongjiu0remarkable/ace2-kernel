@@ -66,19 +66,30 @@ jobs:
           python3 scripts/apply-battery-profile.py "${ARGS[@]}"
 
       - name: Fetch clang r416183b prebuilt
+        continue-on-error: true
         run: |
-          set -eux
-          DEST="$WORK/kernel_platform/prebuilts-master/clang/host/linux-x86"
+          set -x
+          DEST="$WORK/kernel_platform/prebuilts-master/clang/host/linux-x86/clang-r416183b"
           mkdir -p "$DEST"
-          curl -fL --retry 3 --max-time 900 -o /tmp/clang.tar.gz \
-            "https://android.googlesource.com/kernel/prebuilts/clang/host/linux-x86/+archive/refs/heads/main/clang-r416183b.tar.gz"
-          mkdir -p "$DEST/clang-r416183b"
-          tar -xzf /tmp/clang.tar.gz -C "$DEST/clang-r416183b"
-          "$DEST/clang-r416183b/bin/clang" --version
+          URL="https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86/+archive/refs/heads/main/clang-r416183b.tar.gz"
+          if curl -fL --retry 2 --max-time 600 -o /tmp/c.tar.gz "$URL"; then
+            tar -xzf /tmp/c.tar.gz -C "$DEST" && "$DEST/bin/clang" --version
+          else
+            echo "prebuilt fetch failed, will fall back to system clang"
+          fi
+
+      - name: Ensure clang available
+        run: |
+          if ! command -v clang >/dev/null 2>&1; then
+            sudo apt-get update && sudo apt-get install -y clang lld llvm
+          fi
+          clang --version
+          ls "$WORK/kernel_platform/prebuilts-master/clang/host/linux-x86/clang-r416183b/bin/clang" 2>/dev/null || echo "no prebuilt, using system clang"
 
       - name: Build
         env:
           HERMETIC_TOOLCHAIN: "0"
+          CLANG_PREBUILT_BIN: ""
         run: bash scripts/build-gki.sh "$WORK"
 
       - name: Upload artifacts
