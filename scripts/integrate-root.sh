@@ -19,7 +19,7 @@ NO_SUSFS=0
 KSU_REPO="${KSU_REPO:-https://github.com/KernelSU-Next/KernelSU-Next.git}"
 KSU_REF="${KSU_REF:-v1.0.5}"
 SUSFS_REPO="${SUSFS_REPO:-https://github.com/ShirkNeko/susfs4ksu.git}"
-SUSFS_REF="${SUSFS_REF:-master}"
+SUSFS_REF="${SUSFS_REF:-gki-android12-5.10}"
 
 cd "$SRC"
 [ -d drivers ] || { echo "错误: $SRC 下没有 drivers/，不是内核源码根目录" >&2; exit 1; }
