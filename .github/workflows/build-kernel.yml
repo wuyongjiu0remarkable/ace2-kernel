@@ -102,7 +102,7 @@ jobs:
           grep -E '^CONFIG_KSU' "$CFG" || echo NO_KSU
           grep -E '^CONFIG_KSU_SUSFS' "$CFG" || echo NO_SUSFS
           ls -la "$WORK/out/common/arch/arm64/boot/" || true
-          find "$WORK/out" -maxdepth 6 -name 'Image*' || true
+          find "$WORK/kernel_platform/out" -maxdepth 6 -name 'Image*' || true
 
       - name: Upload artifacts
         if: always()
