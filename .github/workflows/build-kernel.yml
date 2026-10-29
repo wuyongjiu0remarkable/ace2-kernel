@@ -65,7 +65,20 @@ jobs:
           fi
           python3 scripts/apply-battery-profile.py "${ARGS[@]}"
 
+      - name: Fetch clang r416183b prebuilt
+        run: |
+          set -eux
+          DEST="$WORK/kernel_platform/prebuilts-master/clang/host/linux-x86"
+          mkdir -p "$DEST"
+          curl -fL --retry 3 --max-time 900 -o /tmp/clang.tar.gz \
+            "https://android.googlesource.com/kernel/prebuilts/clang/host/linux-x86/+archive/refs/heads/main/clang-r416183b.tar.gz"
+          mkdir -p "$DEST/clang-r416183b"
+          tar -xzf /tmp/clang.tar.gz -C "$DEST/clang-r416183b"
+          "$DEST/clang-r416183b/bin/clang" --version
+
       - name: Build
+        env:
+          HERMETIC_TOOLCHAIN: "0"
         run: bash scripts/build-gki.sh "$WORK"
 
       - name: Upload artifacts
