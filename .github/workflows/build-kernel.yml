@@ -58,6 +58,10 @@ jobs:
           G="$K/common/arch/arm64/configs/gki_defconfig"
           sed -i 's/^CONFIG_LTO_CLANG/# &/' "$G"
           grep -q '^CONFIG_LTO_NONE=y' "$G" || echo 'CONFIG_LTO_NONE=y' >> "$G"
+          sed -i 's|^CONFIG_LOCALVERSION=.*|CONFIG_LOCALVERSION="-android12-9-o-g420fe2863fc1"|' "$G"
+          grep -q '^CONFIG_LOCALVERSION=' "$G" || echo 'CONFIG_LOCALVERSION="-android12-9-o-g420fe2863fc1"' >> "$G"
+          grep -q '^# CONFIG_LOCALVERSION_AUTO is not set' "$G" || echo '# CONFIG_LOCALVERSION_AUTO is not set' >> "$G"
+          grep -n LOCALVERSION "$G"
           WB="$K/build/build-tools/path/linux-x86"
           for t in bison flex m4 make python3 python awk sed; do
             s=$(command -v "$t" || true)
