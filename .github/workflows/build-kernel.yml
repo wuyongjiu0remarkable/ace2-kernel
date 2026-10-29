@@ -53,6 +53,7 @@ jobs:
           sed -i '/^ADDITIONAL_KMI_SYMBOL_LISTS=/,/^"$/d' "$C3"
           sed -i 's|^\([[:space:]]*\)ADDITIONAL_KMI_SYMBOL_LISTS+=.*|\1true|' "$C3"
           sed -i 's|^KMI_SYMBOL_LIST_STRICT_MODE=.*|KMI_SYMBOL_LIST_STRICT_MODE=0|' "$C3"
+          sed -i 's|^TRIM_NONLISTED_KMI=.*|TRIM_NONLISTED_KMI=0|' "$C3"
           grep -nE 'ABI_DEFINITION|TIDY_ABI|KMI_' "$C3" || true
           G="$K/common/arch/arm64/configs/gki_defconfig"
           sed -i 's/^CONFIG_LTO_CLANG/# &/' "$G"
