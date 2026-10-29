@@ -15,6 +15,7 @@ COMMON_REPO="${COMMON_REPO:-https://github.com/OnePlusOSS/android_kernel_common_
 MODDT_REPO="${MODDT_REPO:-https://github.com/OnePlusOSS/android_kernel_modules_and_devicetree_oneplus_sm8475.git}"
 JOBS="${JOBS:-$(nproc)}"
 
+mkdir -p "$ROOT"
 cd "$ROOT"
 mkdir -p kernel_platform
 
