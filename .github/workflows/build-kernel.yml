@@ -1,0 +1,80 @@
+name: build-sm8475
+
+on:
+  workflow_dispatch:
+    inputs:
+      variant:
+        description: "baseline=原厂等价 / thermal=只加温控补丁 / root=只加KSU / full=全量"
+        type: choice
+        default: baseline
+        options: [baseline, thermal, root, full]
+      capacity_mah:
+        description: "新电芯容量 mAh（留空=不解容）"
+        default: ""
+      cell_max_mv:
+        description: "新电芯规格书最高电压 mV（要改电压时必填）"
+        default: ""
+      vfloat_mv:
+        description: "常温充电截止电压 mV（留空=不改电压，最安全）"
+        default: ""
+
+env:
+  BRANCH: oneplus/sm8475_b_16.0.0_ace_2
+  WORK: ${{ github.workspace }}/work
+
+jobs:
+  build:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 240
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install deps
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            build-essential bc bison flex libssl-dev libelf-dev cpio kmod \
+            python3 python3-pip git rsync zip unzip \
+            device-tree-compiler lz4 zstd xz-utils patch
+
+      - name: Assemble source tree
+        run: ./scripts/build-gki.sh "$WORK"
+        env:
+          ASSEMBLE_ONLY: "1"
+
+      - name: Apply thermal patch
+        if: inputs.variant != 'baseline'
+        run: ./scripts/apply-patches.sh "$WORK"
+
+      - name: Integrate KernelSU + SUSFS
+        if: inputs.variant == 'root' || inputs.variant == 'full'
+        run: ./scripts/integrate-root.sh "$WORK/kernel_platform/common"
+
+      - name: Apply battery profile
+        if: inputs.capacity_mah != ''
+        env:
+          CAP: ${{ inputs.capacity_mah }}
+          CELLMAX: ${{ inputs.cell_max_mv }}
+          VFLOAT: ${{ inputs.vfloat_mv }}
+        run: |
+          set -euo pipefail
+          DTSI="$WORK/kernel_platform/qcom/proprietary/devicetree/oplus/oplus_chg/oplus-chg-22803.dtsi"
+          ARGS=(--dtsi "$DTSI" --capacity "$CAP" --write)
+          if [ -n "$VFLOAT" ]; then
+            ARGS+=(--vfloat-mv "$VFLOAT" --cell-max-mv "$CELLMAX")
+          fi
+          python3 scripts/apply-battery-profile.py "${ARGS[@]}"
+
+      - name: Build
+        run: ./scripts/build-gki.sh "$WORK"
+
+      - name: Upload artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sm8475-${{ inputs.variant }}-${{ github.run_number }}
+          path: |
+            work/out/dist/
+            work/out/build.log
+          if-no-files-found: warn
+          retention-days: 14

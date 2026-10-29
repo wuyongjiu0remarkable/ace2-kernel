@@ -1,0 +1,7 @@
+# 大文件 / 中间产物，不要推仓库
+src/
+out/
+*.img
+*.tar.gz
+*.log
+__pycache__/

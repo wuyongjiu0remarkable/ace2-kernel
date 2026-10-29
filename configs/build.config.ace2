@@ -1,0 +1,14 @@
+# build.config.ace2 —— 合成构建配置
+#
+# 背景：官方入口 build.config.msm.waipio 是指向 ../msm-kernel/ 的软链接，
+# 而 msm-kernel 未开源。本文件用 common 仓库自带的 aarch64 片段 + GKI defconfig
+# 拼出一个"只编 GKI Image"的最小配置。
+#
+# 已知：
+#   - common/arch/arm64/configs/gki_defconfig 已确认存在（17,954 字节）
+#   - 仍需实测：是否要额外 vendor config fragment（那部分原本在 msm-kernel 里）
+
+. common/build.config.aarch64
+
+KERNEL_DIR=common
+DEFCONFIG=gki_defconfig
