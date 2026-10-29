@@ -86,10 +86,17 @@ jobs:
           clang --version
           ls "$WORK/kernel_platform/prebuilts-master/clang/host/linux-x86/clang-r416183b/bin/clang" 2>/dev/null || echo "no prebuilt, using system clang"
 
+      - name: Neutralize prebuilt tool paths
+        run: |
+          set -eux
+          CFG="$WORK/kernel_platform/common/build.config.common"
+          sed -i 's|^BUILDTOOLS_PREBUILT_BIN=.*|BUILDTOOLS_PREBUILT_BIN=|' "$CFG"
+          sed -i 's|^CLANG_PREBUILT_BIN=.*|CLANG_PREBUILT_BIN=|' "$CFG"
+          grep -nE 'PREBUILT_BIN' "$CFG"
+
       - name: Build
         env:
           HERMETIC_TOOLCHAIN: "0"
-          CLANG_PREBUILT_BIN: ""
         run: bash scripts/build-gki.sh "$WORK"
 
       - name: Upload artifacts
