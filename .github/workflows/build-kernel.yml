@@ -49,9 +49,9 @@ jobs:
           sed -i 's|^POST_DEFCONFIG_CMDS=.*|POST_DEFCONFIG_CMDS=|' "$K/common/build.config.gki"
           C3="$K/common/build.config.gki.aarch64"
           sed -i 's|^ABI_DEFINITION=.*|ABI_DEFINITION=|; s|^TIDY_ABI=.*|TIDY_ABI=0|' "$C3"
-          sed -i 's|^KMI_SYMBOL_LIST=.*|KMI_SYMBOL_LIST=|' "$C3"
-          sed -i 's|^ADDITIONAL_KMI_SYMBOL_LISTS=.*|ADDITIONAL_KMI_SYMBOL_LISTS=|' "$C3"
-          sed -i '/^android\/abi_gki_aarch64/d' "$C3"
+          sed -i 's|^KMI_SYMBOL_LIST=.*|KMI_SYMBOL_LIST=|; s|^KMI_ENFORCED=.*|KMI_ENFORCED=0|' "$C3"
+          sed -i '/^ADDITIONAL_KMI_SYMBOL_LISTS=/,/^"$/d' "$C3"
+          grep -nE 'ABI_DEFINITION|TIDY_ABI|KMI_' "$C3" || true
           G="$K/common/arch/arm64/configs/gki_defconfig"
           sed -i 's/^CONFIG_LTO_CLANG/# &/' "$G"
           grep -q '^CONFIG_LTO_NONE=y' "$G" || echo 'CONFIG_LTO_NONE=y' >> "$G"
