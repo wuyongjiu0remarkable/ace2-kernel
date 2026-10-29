@@ -4,18 +4,18 @@ on:
   workflow_dispatch:
     inputs:
       variant:
-        description: "baseline=原厂等价 / thermal=只加温控补丁 / root=只加KSU / full=全量"
+        description: "baseline | thermal | root | full"
         type: choice
-        default: baseline
+        default: root
         options: [baseline, thermal, root, full]
       capacity_mah:
-        description: "新电芯容量 mAh（留空=不解容）"
+        description: "battery capacity mAh (empty = skip)"
         default: ""
       cell_max_mv:
-        description: "新电芯规格书最高电压 mV（要改电压时必填）"
+        description: "cell max voltage mV"
         default: ""
       vfloat_mv:
-        description: "常温充电截止电压 mV（留空=不改电压，最安全）"
+        description: "normal cutoff mV (empty = keep stock)"
         default: ""
 
 env:
@@ -25,22 +25,42 @@ env:
 jobs:
   build:
     runs-on: ubuntu-22.04
-    timeout-minutes: 240
+    timeout-minutes: 300
     steps:
       - uses: actions/checkout@v4
 
       - name: Install deps
         run: |
           sudo apt-get update
-          sudo apt-get install -y --no-install-recommends \
-            build-essential bc bison flex libssl-dev libelf-dev cpio kmod \
-            python3 python3-pip git rsync zip unzip \
-            device-tree-compiler lz4 zstd xz-utils patch
+          sudo apt-get install -y --no-install-recommends build-essential bc bison flex libssl-dev libelf-dev cpio kmod python3 git rsync zip unzip lld llvm clang device-tree-compiler lz4 zstd xz-utils patch
 
       - name: Assemble source tree
-        run: bash scripts/build-gki.sh "$WORK"
         env:
           ASSEMBLE_ONLY: "1"
+        run: bash scripts/build-gki.sh "$WORK"
+
+      - name: Tune build configs
+        run: |
+          set -eux
+          K="$WORK/kernel_platform"
+          C1="$K/common/build.config.common"
+          sed -i 's|^BUILDTOOLS_PREBUILT_BIN=.*|BUILDTOOLS_PREBUILT_BIN=|' "$C1"
+          sed -i 's|^CLANG_PREBUILT_BIN=.*|CLANG_PREBUILT_BIN=|' "$C1"
+          sed -i 's|^POST_DEFCONFIG_CMDS=.*|POST_DEFCONFIG_CMDS=|' "$K/common/build.config.gki"
+          C3="$K/common/build.config.gki.aarch64"
+          sed -i 's|^ABI_DEFINITION=.*|ABI_DEFINITION=|; s|^TIDY_ABI=.*|TIDY_ABI=0|' "$C3"
+          sed -i 's|^KMI_SYMBOL_LIST=.*|KMI_SYMBOL_LIST=|' "$C3"
+          sed -i 's|^ADDITIONAL_KMI_SYMBOL_LISTS=.*|ADDITIONAL_KMI_SYMBOL_LISTS=|' "$C3"
+          sed -i '/^android\/abi_gki_aarch64/d' "$C3"
+          G="$K/common/arch/arm64/configs/gki_defconfig"
+          sed -i 's/^CONFIG_LTO_CLANG/# &/' "$G"
+          grep -q '^CONFIG_LTO_NONE=y' "$G" || echo 'CONFIG_LTO_NONE=y' >> "$G"
+          WB="$K/build/build-tools/path/linux-x86"
+          for t in bison flex m4 make python3 python awk sed; do
+            s=$(command -v "$t" || true)
+            if [ -n "$s" ]; then ln -sf "$s" "$WB/$t"; fi
+          done
+          ls -l "$WB/bison"
 
       - name: Apply thermal patch
         if: inputs.variant != 'baseline'
@@ -65,61 +85,21 @@ jobs:
           fi
           python3 scripts/apply-battery-profile.py "${ARGS[@]}"
 
-      - name: Fetch clang r416183b prebuilt
-        continue-on-error: true
-        run: |
-          set -x
-          DEST="$WORK/kernel_platform/prebuilts-master/clang/host/linux-x86/clang-r416183b"
-          mkdir -p "$DEST"
-          URL="https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86/+archive/refs/heads/main/clang-r416183b.tar.gz"
-          if curl -fL --retry 2 --max-time 600 -o /tmp/c.tar.gz "$URL"; then
-            tar -xzf /tmp/c.tar.gz -C "$DEST" && "$DEST/bin/clang" --version
-          else
-            echo "prebuilt fetch failed, will fall back to system clang"
-          fi
-
-      - name: Ensure clang available
-        run: |
-          if ! command -v clang >/dev/null 2>&1 || ! command -v ld.lld >/dev/null 2>&1; then
-            sudo apt-get update && sudo apt-get install -y clang lld llvm
-          fi
-          clang --version; ld.lld --version
-          ls "$WORK/kernel_platform/prebuilts-master/clang/host/linux-x86/clang-r416183b/bin/clang" 2>/dev/null || echo "no prebuilt, using system clang"
-
-      - name: Neutralize prebuilt tool paths
-        run: |
-          set -eux
-          CFG="$WORK/kernel_platform/common/build.config.common"
-          sed -i 's|^BUILDTOOLS_PREBUILT_BIN=.*|BUILDTOOLS_PREBUILT_BIN=|' "$CFG"
-          sed -i 's|^CLANG_PREBUILT_BIN=.*|CLANG_PREBUILT_BIN=|' "$CFG"
-          grep -nE 'PREBUILT_BIN' "$CFG"
-          CFG2="$WORK/kernel_platform/common/build.config.gki"
-          sed -i 's|^POST_DEFCONFIG_CMDS=.*|POST_DEFCONFIG_CMDS=|' "$CFG2"
-          grep -n POST_DEFCONFIG "$CFG2"
-          G="$WORK/kernel_platform/common/arch/arm64/configs/gki_defconfig"
-          sed -i 's/^CONFIG_LTO_CLANG/# &/' "$G"
-          grep -q '^CONFIG_LTO_NONE=y' "$G" || echo 'CONFIG_LTO_NONE=y' >> "$G"
-          tail -3 "$G"
-          CFG3="$WORK/kernel_platform/common/build.config.gki.aarch64"
-          sed -i 's|^ABI_DEFINITION=.*|ABI_DEFINITION=|; s|^TIDY_ABI=.*|TIDY_ABI=0|' "$CFG3"
-          grep -nE 'ABI_DEFINITION|TIDY_ABI' "$CFG3" || true
-          sed -i 's|^KMI_SYMBOL_LIST=.*|KMI_SYMBOL_LIST=|; s|^ADDITIONAL_KMI_SYMBOL_LISTS=.*|ADDITIONAL_KMI_SYMBOL_LISTS=|' "$CFG3"
-          sed -i '/^android\/abi_gki_aarch64/d' "$CFG3"
-          grep -nE 'KMI_SYMBOL' "$CFG3" || true
-          # 包装脚本内部仍指向不存在的 prebuilts/，直接换成系统工具
-          WB="$WORK/kernel_platform/build/build-tools/path/linux-x86"
-          for t in bison flex m4 make python3 python awk sed; do
-            s=$(command -v "$t" || true)
-            if [ -n "$s" ]; then ln -sf "$s" "$WB/$t"; fi
-          done
-          ls -l "$WB/bison" "$WB/flex"
-
       - name: Build
         env:
           HERMETIC_TOOLCHAIN: "0"
           JOBS: "4"
-          SKIP_ABI_CHECKS: "true"
         run: bash scripts/build-gki.sh "$WORK"
+
+      - name: Verify features
+        if: always()
+        run: |
+          set -x
+          CFG="$WORK/out/common/.config"
+          grep -E '^CONFIG_KSU' "$CFG" || echo NO_KSU
+          grep -E '^CONFIG_KSU_SUSFS' "$CFG" || echo NO_SUSFS
+          ls -la "$WORK/out/common/arch/arm64/boot/" || true
+          find "$WORK/out" -maxdepth 6 -name 'Image*' || true
 
       - name: Upload artifacts
         if: always()
