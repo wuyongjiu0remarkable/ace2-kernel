@@ -110,7 +110,10 @@ jobs:
         with:
           name: sm8475-${{ inputs.variant }}-${{ github.run_number }}
           path: |
-            stage/
+            work/**/Image
+            work/**/Image.lz4
+            work/**/dist/**
+            work/**/.config
             work/out/build.log
           if-no-files-found: warn
           retention-days: 14
